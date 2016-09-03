@@ -42,9 +42,10 @@ __activate () {
             uclcmd set -u -f "${iocroot}/.default" -t string -- "pool" \
                 "${_npool}"
 	# Check for directory _npool
+	# If its a directory assume UFS pseudo-pool
 	elif [ -d "${_npool}" ] ; then
             export pool="${_npool}"
-            echo "Pseudo-Pool is: ${pool}"
+            __info "Pseudo-Pool is: ${pool}"
             # check filesystems and uclcmd set pool
         else
             __die "${_npool} is not a valid pool or directory!"
