@@ -32,7 +32,7 @@ __activate () {
             unset _opool
         fi
 
-        if [ "$(zfs get -H creation "${_npool}")" ] ; then
+        if [ "$(zfs get -H creation "${_npool}" 2> /dev/null)" ] ; then
             if [ "$(zfs get -H creation "${_opool}" 2> /dev/null)" ] ; then
                   zfs set mountpoint="/${_opool}/iocage" "${_opool}/iocage"
             fi
@@ -41,8 +41,13 @@ __activate () {
             __check_filesystems
             uclcmd set -u -f "${iocroot}/.default" -t string -- "pool" \
                 "${_npool}"
+	# Check for directory _npool
+	elif [ -d "${_npool}" ] ; then
+            export pool="${_npool}"
+            echo "Pseudo-Pool is: ${pool}"
+            # check filesystems and uclcmd set pool
         else
-            __die "${_npool} is not a valid pool!"
+            __die "${_npool} is not a valid pool or directory!"
         fi
     else
         echo "pool: ${_opool}"
