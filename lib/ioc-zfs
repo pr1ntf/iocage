@@ -45,8 +45,10 @@ __activate () {
 	# If its a directory assume UFS pseudo-pool
 	elif [ -d "${_npool}" ] ; then
             export pool="${_npool}"
-            __info "Pseudo-Pool is: ${pool}"
-            # check filesystems and uclcmd set pool
+            __info "Assuming Pseudo-Pool is: ${pool}"
+            __check_filesystems
+            uclcmd set -u -f "${iocroot}/.default" -t string -- "pool" \
+                "${_npool}"
         else
             __die "${_npool} is not a valid pool or directory!"
         fi
@@ -921,7 +923,6 @@ __check_filesystems () {
     local _altroot _filesystems _missing
 
     _missing=0
-    _altroot="$(zpool get -H altroot "${pool}" | awk '{print $3}')"
     # Prepend iocage/ so we can properly set a mount on the root 'iocage'
     # dataset.
     _filesystems="iocage
@@ -934,6 +935,45 @@ __check_filesystems () {
     if [ ! -e "/etc/devfs.rules" ] ; then
         touch /etc/devfs.rules
     fi
+
+    # Check if pool begins with / and assume UFS pseudo-pool
+    if [ "$(printf ${pool} | cut -c 1)" = "/" ] ; then
+        # Loop through and make sure the filesystems exist.
+        for _fs in ${_filesystems} ; do
+            if [ ! -d "${pool}/${_fs}" ] ; then
+                mkdir "${pool}/${_fs}"
+                __info "Created ${pool}/${_fs}"
+            fi
+        done
+        # Make sure globals are set for iocroot
+        __info "Changing ioc-globals"
+        sed -i '' s#.*iocroot.*#iocroot="${pool}/iocage"# \
+            "${LIB}/ioc-globals"
+        export iocroot="${pool}/iocage"
+        # shellcheck disable=SC2155 not here yet
+
+        # Check for defaults and set
+        if [ ! -e "${iocroot}/.default" ] ; then
+            __info "Creating .defaults"
+            _CONF="$CONF_NET
+                   $CONF_JAIL
+                   $CONF_RCTL
+                   $CONF_CUSTOM
+                   $CONF_SYNC
+                   $CONF_FTP
+                   $CONF_GIT"
+
+            for prop in $_CONF ; do
+                prop_name=$prop
+                eval prop="\$${prop}"
+                echo "$prop_name = \"$prop\";" >> ${iocroot}/.default
+            done
+        fi                
+        return
+    fi
+
+    # Look for altroot in a zpool only if pool is not a pseudo pool
+    _altroot="$(zpool get -H altroot "${pool}" | awk '{print $3}')"
 
     # Loop through and make sure the filesystems exist. Make sure you are root
     for _fs in ${_filesystems} ; do
