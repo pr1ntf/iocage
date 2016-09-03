@@ -34,14 +34,6 @@ if [ "${1}" = "--version" ] || [ "${1}" = "version" ] ; then
     exit 0
 fi
 
-# Check if the system has ZFS available. That is required for iocage to work properly.
-# Exit if it doesn't.
-if [ "$(zpool list)" = 'no pools available' ] ; then
-    echo "  ERROR: ZFS is required for iocage to work" \
-        "and I can't find any pools available." >&2
-    exit 1
-fi
-
 if [ "$(uname -K)" -lt "903000" ] ; then
     echo "  ERROR: Unsupported RELEASE found." \
         " Please upgrade to 9.3-RELEASE or later." >&2
