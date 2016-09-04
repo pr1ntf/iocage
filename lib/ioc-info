@@ -65,13 +65,22 @@ __find_jail () {
     _found="0"
 
     # shellcheck disable=SC2154,SC2155
-    export jail_datasets="$(zfs list -d3 -rH -o name "${pool}/iocage" \
-        | egrep -v "jails$|base|releases|templates$|download|${pool}/iocage$|*./root|*./data")"
-
+    # Before exporting datasets, check if UFS or ZFS
+    if [ "$(printf ${pool} | cut -c 1)" = "/" ] ; then
+        export jail_datasets="$(ls "${pool}/iocage/jails" "${pool}/iocage/templates" \
+            | egrep -v "^$|:"
+    else
+        export jail_datasets="$(zfs list -d3 -rH -o name "${pool}/iocage" \
+            | egrep -v "jails$|base|releases|templates$|download|${pool}/iocage$|*./root|*./data")"
+    fi
     if [ "${_name}" = "ALL" ] ; then
         for _jail in ${jail_datasets} ; do
-            _mountpoint="$(zfs get -H -o value mountpoint ${_jail})"
-
+            # Check to see if UFS or ZFS
+            if [ "$(printf ${pool} | cut -c 1)" = "/" ] ; then
+                _mountpoint="${_jail}"
+            else
+                _mountpoint="$(zfs get -H -o value mountpoint ${_jail})"
+            fi
             if [ ! -e "${_mountpoint}/config" ] ; then
                 _juuid="$(echo ${_jail} | cut -d / -f 4)"
 
@@ -104,7 +113,9 @@ __find_jail () {
         # and hardcode it.
         if [ "$(echo ${_name} | wc -c)" -ge 37 ] ; then
             _jlist="${pool}/iocage/jails/${_name}"
-            if [ "$(zfs get -H creation ${_jlist})" ] ; then
+            if [ "$(printf ${pool} | cut -c 1)" = "/" ] && [ -d "${_jlist}" ] ; then
+                _found="1"
+            elif [ "$(zfs get -H creation ${_jlist})" ] ; then
                 _found="1"
             fi
         fi
@@ -112,8 +123,13 @@ __find_jail () {
         if [ "${_found}" != "1" ] ; then
             for _jail in ${jail_datasets} ; do
                 _found="$(echo ${_jail} | grep -iE ${_name}$)"
-                _mountpoint="$(zfs get -H -o value mountpoint ${_jail})"
 
+                # Check if using UFS or ZFS
+                if [ "$(printf ${pool} | cut -c 1)" = "/" ] ; then
+                    _mountpoint="${_jail}"
+                else
+                    _mountpoint="$(zfs get -H -o value mountpoint ${_jail})"
+                fi
                 if [ ! -e "${_mountpoint}/config" ] ; then
                     _juuid="$(echo ${_jail} | cut -d / -f 4)"
                     __dump_config ${_juuid}
