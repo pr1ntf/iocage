@@ -489,9 +489,6 @@ __create_jail () {
     _devfs_string="$(fgrep -xq \
                   "## IOCAGE -- Add DHCP to ruleset 4" /etc/devfs.rules \
                   ; echo $?)"
-    _release_dataset="${pool}/iocage/releases"
-    _release_dataset_check="$(zfs get -H creation ${_release_dataset} > \
-                           /dev/null 2>&1 ; echo $?)"
     _configured="0"
     _basedir_list="dev
                    tmp
@@ -502,6 +499,14 @@ __create_jail () {
                    mnt
                    var/run"
     _template="0"
+
+    # Only run release dataset check if using real zpool not pseudo-pool
+    if [ "$(printf ${pool} | cut -c 1)" != "/" ] ; then
+        __info "Running dataset check"
+        _release_dataset="${pool}/iocage/releases"
+        _release_dataset_check="$(zfs get -H creation ${_release_dataset} > \
+                               /dev/null 2>&1 ; echo $?)"
+    fi
 
     if [ -z "${_supported_release}" -a "${2}" != "-e" -a "${1}" = "create" -a -z "${_installed}" ] ; then
         echo "  You are not running a production RELEASE. (${release})" >&2
