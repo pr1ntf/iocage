@@ -746,18 +746,28 @@ __link_tag () {
     if [ ! -z "${tag}" -a -z "${_tag}" ] ; then
         _tag="${tag}"
     fi
-
-    if _mountpoint=$(zfs get -H -o value mountpoint ${_dataset}) ; then
+    # Set correct mountpoint for zfs or ufs
+    if [ "$(printf ${pool} | cut -c 1)" = "/" ] ; then
+        _mountpoint="${_dataset}"
+    else
+        _mountpoint="$(zfs get -H -o value mountpoint ${_dataset})"
+    fi
+    if [ ! -z "${_mountpoint}" ] ; then
         _readlink_mount="$(readlink ${iocroot}/tags/${_tag})"
         _readlink_tag="$(readlink ${iocroot}/tags/${_tag} | cut -d \/ -f 4)"
         _tag_date=$(date "+%F@%T")
         mkdir -p ${iocroot}/tags
         if [ ! -e ${iocroot}/tags/${_tag} ] ; then
-            _altroot="$(zpool get -H altroot "${pool}" | awk '{print $3}')"
-            if [ "${_altroot}" != "-" ]; then
-                _mountpoint=${_mountpoint#${iocroot}}
-                cd ${iocroot}/tags
-                ln -s ..${_mountpoint} ${_tag}
+            # Only do altroot stuff if on zfs
+            if [ "$(printf ${pool} | cut -c 1)" != "/" ] ; then
+                _altroot="$(zpool get -H altroot "${pool}" | awk '{print $3}')"
+                if [ "${_altroot}" != "-" ]; then
+                    _mountpoint=${_mountpoint#${iocroot}}
+                    cd ${iocroot}/tags
+                    ln -s ..${_mountpoint} ${_tag}
+                else
+                    ln -s ${_mountpoint} ${iocroot}/tags/${_tag}
+                fi
             else
                 ln -s ${_mountpoint} ${iocroot}/tags/${_tag}
             fi

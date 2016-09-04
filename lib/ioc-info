@@ -422,18 +422,25 @@ __get_jail_prop () {
             _dataset="$(__find_jail ${_name})" || exit $?
         fi
 
-        _mountpoint="$(zfs get -H -o value mountpoint ${_dataset})"
-
+        # Check if dataset is on zfs or ufs
+        if [ "$(printf ${pool} | cut -c 1)" = "/" ] ; then
+            _mountpoint="${dataset}"
+        else
+            _mountpoint="$(zfs get -H -o value mountpoint ${_dataset})"
+        fi
         if [ "${_property}" = "all" ] ; then
             while IFS=" = " read _prop _value ; do
                 _value="$(echo ${_value} | sed -e 's/;//g' -e 's/"//g')"
                 echo "${_prop}:${_value}"
             done <${_mountpoint}/config
 
-            for _prop in ${CONF_ZFS} ; do
-                _value="$(zfs get -H -o value ${_prop} ${_dataset})"
-                echo "${_prop}:${_value}"
-            done
+            # Only do zfs properties if on zpool
+            if [ "$(printf ${pool} | cut -c 1)" != "/" ] ; then
+                for _prop in ${CONF_ZFS} ; do
+                    _value="$(zfs get -H -o value ${_prop} ${_dataset})"
+                    echo "${_prop}:${_value}"
+                done
+            fi
 
             return
         fi

@@ -483,8 +483,6 @@ __create_jail () {
           _pname _prop _isprop _jail_zfs_mountpoint _basedir_list _uuid \
           _template _zfs_dataset
 
-    _installed=$(zfs list -rH ${pool}/iocage/releases | grep ${release})
-    _releases=$(__list_jails -r | grep -v "Downloaded releases:")
     _supported_release=$(echo "${release}" | grep "RELEASE")
     _devfs_string="$(fgrep -xq \
                   "## IOCAGE -- Add DHCP to ruleset 4" /etc/devfs.rules \
@@ -500,9 +498,16 @@ __create_jail () {
                    var/run"
     _template="0"
 
-    # Only run release dataset check if using real zpool not pseudo-pool
-    if [ "$(printf ${pool} | cut -c 1)" != "/" ] ; then
-        __info "Running dataset check"
+    # Set release variables according to pool type
+    if [ "$(printf ${pool} | cut -c 1)" = "/" ] ; then
+        __info "Assuming pseudo-pool"
+        # Make these the same for now until list_jails is fixed for UFS
+        _installed=$(ls ${pool}/iocage/releases | grep ${release})
+        _releases=$(ls ${pool}/iocage/releases)
+    else
+        __info "Assuming zpool"
+        _installed=$(zfs list -rH ${pool}/iocage/releases | grep ${release})
+        _releases=$(__list_jails -r | grep -v "Downloaded releases:")
         _release_dataset="${pool}/iocage/releases"
         _release_dataset_check="$(zfs get -H creation ${_release_dataset} > \
                                /dev/null 2>&1 ; echo $?)"
@@ -560,7 +565,14 @@ __create_jail () {
         fi
     fi
 
-    zfs create -p ${pool}/iocage/jails/${uuid}/root
+    # Check if pool is zpool or pseudo-pool before creating jail dataset
+    if [ "$(printf ${pool} | cut -c 1)" = "/" ] ; then
+        __info "Creating jail dataset on pseudo-pool"
+        mkdir -p ${pool}/iocage/jails/${uuid}/root
+    else
+        __info "Creating jail dataset on zpool"
+        zfs create -p ${pool}/iocage/jails/${uuid}/root
+    fi
     touch "${iocroot}/jails/${uuid}/config"
     # Work around the different UUID for jail datasets at creation.
     export jail_zfs_dataset="iocage/jails/${uuid}/data"
@@ -616,8 +628,10 @@ __create_jail () {
         fi
 
         # remove any residual clone snapshots carried over from the RELEASE datasets
-        __snapremove ${uuid}@ALL ${pool}/iocage/jails/${uuid}
-
+        # Only run if using zpool (snaps not supported for UFS)
+        if [ "$(printf ${pool} | cut -c 1)" != "/" ] ; then
+            __snapremove ${uuid}@ALL ${pool}/iocage/jails/${uuid}
+        fi
         if [ ! -e "${iocroot}/jails/${uuid}/root/etc/resolv.conf" ] ; then
             __resolv_conf ${uuid} ${pool}/iocage/jails/${uuid} > \
                 ${iocroot}/jails/${uuid}/root/etc/resolv.conf

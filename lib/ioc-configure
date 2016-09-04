@@ -110,16 +110,18 @@ __configure_jail () {
         fi
     done
 
-    for _prop in ${CONF_ZFS} ; do
-        _prop_name=${_prop}
-        eval _prop="\$${_prop}"
-
-        if [ ! -z "${_prop}" ] && [ "${_prop}" != "readonly" ] ; then
-            _value="${_prop}"
-            zfs set ${_prop_name}="${_value}" ${_dataset}
-        fi
-
-    done
+    # Only configure ZFS props if using a zpool
+    if [ "$(printf ${pool} | cut -c 1)" != "/" ] ; then
+        # If pool starts with / it's a folder, not zpool
+        for _prop in ${CONF_ZFS} ; do
+            _prop_name=${_prop}
+            eval _prop="\$${_prop}"
+            if [ ! -z "${_prop}" ] && [ "${_prop}" != "readonly" ] ; then
+                _value="${_prop}"
+                zfs set ${_prop_name}="${_value}" ${_dataset}
+            fi
+        done
+    fi
 }
 
 __jail_rc_conf () {
