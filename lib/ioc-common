@@ -565,13 +565,22 @@ __fetch_release () {
         _release="${iocset_release}"
     fi
 
-
-
-    _rel_exist=$(zfs list -H | grep -w ^${pool}/iocage/releases/${_release})
-
-    if [ -z "${_rel_exist}" ] ; then
-        zfs create -o compression=${compression} -p ${pool}/iocage/releases/${_release}/root
-        zfs create -o compression=${compression} -p ${pool}/iocage/download/${_release}
+    # Check if pool begins with / and assume UFS pseudo-pool
+    if [ "$(printf ${pool} | cut -c 1)" = "/" ] ; then
+        # Check for specified release, mkdir if not there
+        if [ ! -d ${pool}/iocage/releases/${_release} ] ; then
+            __info "Creating release folder"
+            mkdir -p ${pool}/iocage/releases/${_release}/root
+            mkdir -p ${pool}/iocage/download/${_release}
+        fi
+    else
+        # Create Release ZFS Datasets
+        __info "Creating release dataset"
+        _rel_exist=$(zfs list -H | grep -w ^${pool}/iocage/releases/${_release})
+        if [ -z "${_rel_exist}" ] ; then
+            zfs create -o compression=${compression} -p ${pool}/iocage/releases/${_release}/root
+            zfs create -o compression=${compression} -p ${pool}/iocage/download/${_release}
+        fi
     fi
 
     if [ -z "${ftpdir}" ] ; then
