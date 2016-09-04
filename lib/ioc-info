@@ -68,7 +68,7 @@ __find_jail () {
     # Before exporting datasets, check if UFS or ZFS
     if [ "$(printf ${pool} | cut -c 1)" = "/" ] ; then
         export jail_datasets="$(ls "${pool}/iocage/jails" "${pool}/iocage/templates" \
-            | egrep -v "^$|:"
+            | egrep -v "^$|:")"
     else
         export jail_datasets="$(zfs list -d3 -rH -o name "${pool}/iocage" \
             | egrep -v "jails$|base|releases|templates$|download|${pool}/iocage$|*./root|*./data")"

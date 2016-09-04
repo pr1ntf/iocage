@@ -34,10 +34,14 @@ __start_jail () {
     _exec_fib="$(__get_jail_prop exec_fib ${_fulluuid} ${_dataset})"
     _nics="$(__get_jail_prop interfaces ${_fulluuid} ${_dataset} \
            | awk 'BEGIN { FS = "," } ; { print $1,$2,$3,$4 }')"
-    _clone_check="$(zfs get -H origin ${_dataset} | awk '{print $3}')"
     _devfs_string="$(fgrep -xq \
                   "## IOCAGE -- Add DHCP to ruleset 4" /etc/devfs.rules \
                   ; echo $?)"
+
+    # Only run clone check if using zpool
+    if [ "$(printf ${pool} | cut -c 1)" != "/" ] ; then
+        _clone_check="$(zfs get -H origin ${_dataset} | awk '{print $3}')"
+    fi
 
     if [ "${_state}" ] ; then
         __info "${_fulluuid} (${_tag}) is already up" >&2
