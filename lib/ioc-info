@@ -67,8 +67,8 @@ __find_jail () {
     # shellcheck disable=SC2154,SC2155
     # Before exporting datasets, check if UFS or ZFS
     if [ "$(printf ${pool} | cut -c 1)" = "/" ] ; then
-        export jail_datasets="$(ls "${pool}/iocage/jails" "${pool}/iocage/templates" \
-            | egrep -v "^$|:")"
+        # dataset needs to include templates so this is broken with templates
+        export jail_datasets="$(ls "${pool}/iocage/jails" | sed -e "s/^/\/jls\/iocage\/jails\//")"
     else
         export jail_datasets="$(zfs list -d3 -rH -o name "${pool}/iocage" \
             | egrep -v "jails$|base|releases|templates$|download|${pool}/iocage$|*./root|*./data")"
@@ -471,6 +471,10 @@ __get_jail_prop () {
         if [ "${_value}" != "null" ] ; then
             _found=1
             echo "${_value}"
+        # if prop is mountpoint and using ufs return dataset
+        elif [ "${_property}" = "mountpoint" ] && [ "$(printf ${pool} | cut -c 1)" = "/" ] ; then
+            _found=1
+            echo "${_dataset}"
         # For any ZFS native properties
         elif [ "${_value}" = "null" ] ; then
             _value="$(zfs get -H -o value ${_property} ${_dataset} 2> \
