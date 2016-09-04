@@ -440,7 +440,7 @@ __get_jail_prop () {
 
         # Check if dataset is on zfs or ufs
         if [ "$(printf ${pool} | cut -c 1)" = "/" ] ; then
-            _mountpoint="${dataset}"
+            _mountpoint="${_dataset}"
         else
             _mountpoint="$(zfs get -H -o value mountpoint ${_dataset})"
         fi
